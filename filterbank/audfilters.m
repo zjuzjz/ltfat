@@ -167,8 +167,7 @@ function [g,a,fc,L]=audfilters(fs,Ls,varargin)
 %
 %   See also: filterbank, ufilterbank, ifilterbank, ceil23
 %
-%   References: ltfatnote027
-%   [DO NOT FORGET TO ADD NEW REFERENCE]
+%   References: ltfatnote027 Necciari2016_sub
 
 % Authors: Peter L. Søndergaard (original 'erbfilters' function)
 % Modified by: Thibaud Necciari, Nicki Holighaus
@@ -473,10 +472,10 @@ function glow = audlowpassfilter(filterfunc,g,a,fmin,fs,winbw,scal,bwtruncmul,kv
     
     temp_fbresp = @(L) filterbankresponse(g(2:end-1),a(2:end-1,:),L);
     glow.H = @(L) fftshift(long2fir(...
-                sqrt(postpad(ones(ceil(L/2),1),L).*temp_fun(L) + ...
+                sqrt(max(postpad(ones(ceil(L/2),1),L).*temp_fun(L) + ...
                 flipud(postpad(ones(L-ceil(L/2),1),L).*circshift(temp_fun(L),-1)) - ...
                 (flipud(postpad(ones(round(L/4)-1,1),L)).*temp_fbresp(L) + ...
-                postpad(ones(round(L/4),1),L).*flipud(temp_fbresp(L)))),...
+                postpad(ones(round(L/4),1),L).*flipud(temp_fbresp(L))),0)),...
                 Lw(L)))*scal;
                     
     glow.foff = @(L) -floor(Lw(L)/2);
@@ -490,14 +489,14 @@ function ghigh = audhighpassfilter(filterfunc,g,a,fmax,fs,winbw,scal,bwtruncmul,
                 2*wrap_around),flags.audscale);
     
     %Temporary filters are created up to this frequency
-    fc_lim = audtofreq(-freqtoaud(fs/2,'erb')+4,'erb'); 
+    fc_lim = audtofreq(freqtoaud(fs/2,'erb')+4,'erb'); 
 
     temp_fc = [];
     % Temporary center frequencies and bandwidths for lowpass
-    while (next_fc > 0) || (next_fc <= fc_lim) 
+    while (next_fc <= fc_lim) %(next_fc > 0) || (next_fc <= fc_lim) 
         temp_fc(end+1) = next_fc;
-        next_fc = audtofreq(modcent(freqtoaud(next_fc,flags.audscale)+kv.spacing,...
-                2*wrap_around),flags.audscale);        
+        next_fc = audtofreq(freqtoaud(next_fc,flags.audscale)+kv.spacing,...
+                            flags.audscale);        
     end
     
     if flags.do_symmetric
@@ -512,7 +511,7 @@ function ghigh = audhighpassfilter(filterfunc,g,a,fmax,fs,winbw,scal,bwtruncmul,
         temp_bw = audtofreq(freqtoaud(temp_fc,flags.audscale)+fsupp_scale/2,flags.audscale)-...
                   audtofreq(freqtoaud(temp_fc,flags.audscale)-fsupp_scale/2,flags.audscale);
               
-        temp_low = modcent(audtofreq(freqtoaud(temp_fc(1),flags.audscale)-fsupp_scale/2,flags.audscale),fs);
+        temp_low = audtofreq(freqtoaud(temp_fc(1),flags.audscale)-fsupp_scale/2,flags.audscale);
         Width = 0;
         if temp_low > 0
             Width = max(2*(fs/2-temp_low),0);
@@ -528,10 +527,10 @@ function ghigh = audhighpassfilter(filterfunc,g,a,fmax,fs,winbw,scal,bwtruncmul,
     temp_fun = @(L) filterbankresponse(temp_g,1,L);
     temp_fbresp = @(L) filterbankresponse(g(2:end-1),a(2:end-1,:),L);
     ghigh.H = @(L) fftshift(long2fir(...
-                     fftshift(sqrt(postpad(ones(ceil(L/2),1),L).*temp_fun(L) + ...
+                     fftshift(sqrt(max(postpad(ones(ceil(L/2),1),L).*temp_fun(L) + ...
                      flipud(postpad(ones(L-ceil(L/2),1),L).*circshift(temp_fun(L),-1)) - ...
                      (postpad([zeros(ceil(L/2),1);ones(round(L/4),1)],L).*temp_fbresp(L) + ...
-                     flipud(postpad([zeros(L-ceil(L/2),1);ones(round(L/4),1)],L).*temp_fbresp(L))))),...
+                     flipud(postpad([zeros(L-ceil(L/2),1);ones(round(L/4),1)],L).*temp_fbresp(L))),0))),...
                      Lw(L)))*scal;
     
     ghigh.foff = @(L) ceil(L/2)-floor(Lw(L)/2)-1;
