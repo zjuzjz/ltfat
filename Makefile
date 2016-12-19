@@ -21,18 +21,12 @@ PACKAGE := ltfat
 VERSION := $(shell cat "ltfat_version")
 
 ## This are the files that will be created for the releases.
-TARGET_DIR      := ~/publish/target
+TARGET_DIR      := ~/publish/of_package
 MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 RELEASE_DIR     := $(TARGET_DIR)/$(PACKAGE)-$(VERSION)
 RELEASE_TARBALL := $(TARGET_DIR)/$(PACKAGE)-$(VERSION).tar.gz
 HTML_DIR        := $(TARGET_DIR)/$(PACKAGE)-html
 HTML_TARBALL    := $(TARGET_DIR)/$(PACKAGE)-html.tar.gz
-
-## Remove if not needed, most packages do not have PKG_ADD directives.
-# M_SOURCES   := $(wildcard inst/*.m)
-# CC_SOURCES  := $(wildcard src/*.cc)
-# PKG_ADD     := $(shell grep -sPho '(?<=(//|\#\#) PKG_ADD: ).*' \
-#                          $(CC_SOURCES) $(M_SOURCES))
 
 ## These can be set by environment variables which allow to easily
 ## test with different Octave versions.
@@ -52,7 +46,7 @@ endif
 
 ## Targets that are not filenames.
 ## https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: help dist html release install all check run clean 
+.PHONY: help dist html release install all check run clean update
 
 ## make will display the command before runnning them.  Use @command
 ## to not display it (makes specially sense for echo).
@@ -73,13 +67,19 @@ help:
 $(MAT2DOC):
 	git clone -b notestargets https://github.com/ltfat/mat2doc $(TARGET_DIR)/mat2doc
 
+update:
+	git checkout octaveforge
+	git merge master
+	( cd $(TARGET_DIR)/mat2doc ; \
+	  git pull ; )
+
 ## dist and html targets are only PHONY/alias targets to the release
 ## and html tarballs.
 dist: $(RELEASE_TARBALL)
 html: $(HTML_TARBALL)
 
 ## An implicit rule with a recipe to build the tarballs correctly.
-$(RELEASE_TARBALL): $(MAT2DOC)
+$(RELEASE_TARBALL): $(MAT2DOC) update
 	@echo "About to start generating release tarball into $(RELEASE_DIR)"
 	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(RELEASE_DIR)
 	mv $(RELEASE_DIR)/ltfat-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
