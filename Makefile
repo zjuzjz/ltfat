@@ -43,7 +43,7 @@ HAS_BIBTEX2HTML := $(shell which bibtex2html)
 HAS_JAVAC := $(shell which javac)
 
 ifndef HAS_BIBTEX2HTML
-	$(error "Please install bibtex2html. E.g. sudo apt-get install bibtex2html")
+$(error "Please install bibtex2html. E.g. sudo apt-get install bibtex2html")
 endif
 ifndef HAS_JAVAC
 $(error "Please install javac. E.g. sudo apt-get install openjdk-X-jdk, where X is at least 6")
@@ -117,6 +117,9 @@ install: $(RELEASE_TARBALL)
 clean:
 	@echo "Cleaning ..."
 	$(RM) -r $(RELEASE_DIR) $(RELEASE_TARBALL) $(HTML_TARBALL) $(HTML_DIR) $(TARGET_DIR)/*.md5
+
+pushforge:
+	git push https://git.code.sf.net/p/octave/ltfat octaveforge:master
 
 ##
 ## Recipes for testing purposes
