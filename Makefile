@@ -9,9 +9,13 @@
 
 ## This makefile requires 
 ##	 python 2.x
+##		pygments
+##		docutils
 ##   javac
+##   lynx
+##	 dos2unix
 ##   mat2doc https://github.com/ltfat/mat2doc
-##   bibtex2html https://github.com/backtracking/bibtex2html or apt-get
+##   bibtex2html 
 ##
 
 
@@ -22,13 +26,13 @@ VERSION := $(shell cat "ltfat_version")
 
 ## This are the files that will be created for the releases.
 TARGET_DIR      := ~/publish/$(PACKAGE)-octaveforge
-MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 RELEASE_DIR     := $(TARGET_DIR)/$(PACKAGE)-$(VERSION)
 TMP_DIR         := $(TARGET_DIR)/$(PACKAGE)-tmp
 RELEASE_TARBALL := $(TARGET_DIR)/$(PACKAGE)-$(VERSION).tar.gz
 HTML_DIR        := $(TARGET_DIR)/$(PACKAGE)-html
 HTML_TARBALL    := $(TARGET_DIR)/$(PACKAGE)-html.tar.gz
 
+MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 ## These can be set by environment variables which allow to easily
 ## test with different Octave versions.
 OCTAVE    ?= octave
@@ -36,12 +40,20 @@ MKOCTFILE ?= mkoctfile
 
 HAS_BIBTEX2HTML := $(shell which bibtex2html)
 HAS_JAVAC := $(shell which javac)
+HAS_LYNX := $(shell which lynx)
+HAS_DOS2UNIX := $(shell which dos2unix)
 
 ifndef HAS_BIBTEX2HTML
 $(error "Please install bibtex2html. E.g. sudo apt-get install bibtex2html")
 endif
 ifndef HAS_JAVAC
 $(error "Please install javac. E.g. sudo apt-get install openjdk-X-jdk, where X is at least 6")
+endif
+ifndef HAS_LYNX
+$(error "Please install lynx. E.g. sudo apt-get install lynx")
+endif
+ifndef HAS_DOS2UNIX
+$(error "Please install dos2unix utility. E.g. sudo apt-get install dos2unix")
 endif
 
 
@@ -78,9 +90,9 @@ html: $(HTML_TARBALL)
 
 ## An implicit rule with a recipe to build the tarballs correctly.
 $(RELEASE_TARBALL): $(MAT2DOC) update
-	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR)
-	mv $(TMP_DIR)/ltfat-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
-	mv $(TMP_DIR)/ltfat-mat/ltfat $(RELEASE_DIR)
+	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR) --projectname=$(PACKAGE)
+	mv $(TMP_DIR)/$(PACKAGE)-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
+	mv $(TMP_DIR)/$(PACKAGE)-mat/$(PACKAGE) $(RELEASE_DIR)
 
 $(HTML_TARBALL): $(HTML_DIR)
 	( cd $(TARGET_DIR) ; \
