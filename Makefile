@@ -8,14 +8,15 @@
 ## without any warranty.
 
 ## This makefile requires 
-##	 python 2.x
-##		pygments
-##		docutils
+##	 python 2.x  --- python and modules are not checked in this Makefile
+##		pygments  
+##		docutils  
+##
 ##   javac
 ##   lynx
 ##	 dos2unix
-##   mat2doc https://github.com/ltfat/mat2doc
 ##   bibtex2html 
+##   mat2doc https://github.com/ltfat/mat2doc <-- pulled automatically
 ##
 
 
