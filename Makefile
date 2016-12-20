@@ -11,7 +11,7 @@
 ##	 python 2.x
 ##   javac
 ##   mat2doc https://github.com/ltfat/mat2doc
-##   bibtex2html https://github.com/backtracking/bibtex2html
+##   bibtex2html https://github.com/backtracking/bibtex2html or apt-get
 ##
 
 
@@ -21,9 +21,10 @@ PACKAGE := ltfat
 VERSION := $(shell cat "ltfat_version")
 
 ## This are the files that will be created for the releases.
-TARGET_DIR      := ~/publish/of_package
+TARGET_DIR      := ~/publish/$(PACKAGE)-octaveforge
 MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 RELEASE_DIR     := $(TARGET_DIR)/$(PACKAGE)-$(VERSION)
+TMP_DIR         := $(TARGET_DIR)/$(PACKAGE)-tmp
 RELEASE_TARBALL := $(TARGET_DIR)/$(PACKAGE)-$(VERSION).tar.gz
 HTML_DIR        := $(TARGET_DIR)/$(PACKAGE)-html
 HTML_TARBALL    := $(TARGET_DIR)/$(PACKAGE)-html.tar.gz
@@ -54,12 +55,11 @@ help:
 	@echo "Targets:"
 	@echo "   dist    - Create $(RELEASE_TARBALL) for release"
 	@echo "   html    - Create $(HTML_TARBALL) for release"
-	@echo "   release - Create both of the above and show md5sums"
+	@echo "   release - Create both of the above and store md5sums in $(RELEASE_DIR).md5"
 	@echo
 	@echo "   install - Install the package in GNU Octave"
 	@echo "   all     - Build all oct files"
 	@echo "   check   - Execute package tests (w/o install)"
-	@echo "   doctest - Tests only the help text via the doctest package"
 	@echo "   run     - Run Octave with development in PATH (no install)"
 	@echo
 	@echo "   clean   - Remove releases, html documentation, and oct files"
@@ -68,8 +68,6 @@ $(MAT2DOC):
 	git clone -b notestargets https://github.com/ltfat/mat2doc $(TARGET_DIR)/mat2doc
 
 update:
-	git checkout octaveforge
-	git merge master
 	( cd $(TARGET_DIR)/mat2doc ; \
 	  git pull ; )
 
@@ -80,9 +78,9 @@ html: $(HTML_TARBALL)
 
 ## An implicit rule with a recipe to build the tarballs correctly.
 $(RELEASE_TARBALL): $(MAT2DOC) update
-	@echo "About to start generating release tarball into $(RELEASE_DIR)"
-	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(RELEASE_DIR)
-	mv $(RELEASE_DIR)/ltfat-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
+	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR)
+	mv $(TMP_DIR)/ltfat-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
+	mv $(TMP_DIR)/ltfat-mat/ltfat $(RELEASE_DIR)
 
 $(HTML_TARBALL): $(HTML_DIR)
 	( cd $(TARGET_DIR) ; \
@@ -116,7 +114,7 @@ install: $(RELEASE_TARBALL)
 # That is, be careful what you set in that variable
 clean:
 	@echo "Cleaning ..."
-	$(RM) -r $(RELEASE_DIR) $(RELEASE_TARBALL) $(HTML_TARBALL) $(HTML_DIR) $(TARGET_DIR)/*.md5
+	$(RM) -r $(RELEASE_DIR) $(RELEASE_TARBALL) $(HTML_TARBALL) $(HTML_DIR) $(TARGET_DIR)/*.md5 $(TMP_DIR)
 
 pushforge:
 	git push https://git.code.sf.net/p/octave/ltfat octaveforge:master
@@ -125,33 +123,35 @@ pushforge:
 ## Recipes for testing purposes
 ##
 
-## Build any requires oct files.  Some packages may not need this at all.
-## Other packages may require a configure file to be created and run first.
-all: $(CC_SOURCES)
-	$(MAKE) -C src/
+## Build any requires oct files. 
+all: 
+	(cd $(RELEASE_DIR)/src ; \
+	./configure ; \
+	make -j4 ; )
 
 ## Start an Octave session with the package directories on the path for
 ## interactice test of development sources.
 run: all
-	$(OCTAVE) --persist --path "inst/" --path "src/" \
+	(cd $(RELEASE_DIR) ; \
+	$(OCTAVE) --persist --path "$(RELEASE_DIR)/inst/" --path "$(RELEASE_DIR)/src/" \
 	  --eval 'if(!isempty("$(DEPENDS)")); pkg load $(DEPENDS); endif;' \
-	  --eval '$(PKG_ADD)'
+	  --eval 'ltfatstart();' ; )
 
-## Test example blocks in the documentation.  Needs doctest package
-##  https://octave.sourceforge.io/doctest/index.html
-doctest: all
-	$(OCTAVE) --path "inst/" --path "src/" \
-	  --eval '${PKG_ADD}' \
-	  --eval 'pkg load doctest;' \
-	  --eval "targets = '$(shell (ls inst; ls src | grep .oct) | cut -f2 -d@ | cut -f1 -d.)';" \
-	  --eval "targets = strsplit (targets, ' ');" \
-	  --eval "doctest (targets);"
+# ## Test example blocks in the documentation.  Needs doctest package
+# ##  https://octave.sourceforge.io/doctest/index.html
+# doctest: all
+# 	$(OCTAVE) --path "inst/" --path "src/" \
+# 	  --eval '${PKG_ADD}' \
+# 	  --eval 'pkg load doctest;' \
+# 	  --eval "targets = '$(shell (ls inst; ls src | grep .oct) | cut -f2 -d@ | cut -f1 -d.)';" \
+# 	  --eval "targets = strsplit (targets, ' ');" \
+# 	  --eval "doctest (targets);"
 
-## Note "doctest" as prerequesite.  When testing the package, also check
-## the documentation.
-check: all doctest
-	$(OCTAVE) --path "inst/" --path "src/" \
+## 
+check: all 
+	(cd $(RELEASE_DIR) ; \
+	$(OCTAVE) --path "$(RELEASE_DIR)/inst/" --path "$(RELEASE_DIR)/src/" \
 	  --eval 'if(!isempty("$(DEPENDS)")); pkg load $(DEPENDS); endif;' \
-	  --eval '${PKG_ADD}' \
-	  --eval 'cellfun(@runtests, {"inst", "src"});'
+	  --eval 'ltfatstart();' \
+	  --eval 'test_all_ltfat();' ; )
 	  #--eval '__run_test_suite__ ({"inst", "src"}, {});'
