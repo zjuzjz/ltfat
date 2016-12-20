@@ -42,6 +42,7 @@ HAS_BIBTEX2HTML := $(shell which bibtex2html)
 HAS_JAVAC := $(shell which javac)
 HAS_LYNX := $(shell which lynx)
 HAS_DOS2UNIX := $(shell which dos2unix)
+HAS_AUTOCONF := $(shell which autoconf) 
 
 ifndef HAS_BIBTEX2HTML
 $(error "Please install bibtex2html. E.g. sudo apt-get install bibtex2html")
@@ -54,6 +55,10 @@ $(error "Please install lynx. E.g. sudo apt-get install lynx")
 endif
 ifndef HAS_DOS2UNIX
 $(error "Please install dos2unix utility. E.g. sudo apt-get install dos2unix")
+endif
+## If autoconf is missing, a broken package would be silently created.
+ifndef HAS_AUTOCONF
+$(error "Please install development utilities like autoconf.")
 endif
 
 
