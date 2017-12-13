@@ -46,7 +46,7 @@ function [gt]=wilorth(p1,p2,p3)
 %   TESTING: TEST_DWILT TEST_WMDCT
 %   REFERENCE: OK
 
-error(nargchk(2,3,nargin));
+complainif_argnonotinrange(nargin,2,3,mfilename);
 
 wasrow=0;
 

@@ -73,43 +73,43 @@ end;
 
 switch(lower(ttype))
   case {'fourier','dft'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=idft(eye(p2));
 
   case {'dcti'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dcti(eye(p2))';
 
   case {'dctii'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dctii(eye(p2))';
 
   case {'dctiii'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dctiii(eye(p2))';
 
   case {'dctiv'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dctiv(eye(p2))';
 
   case {'dsti'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dsti(eye(p2))';
 
   case {'dstii'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dstii(eye(p2))';
 
   case {'dstiii'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dstiii(eye(p2))';
 
   case {'dstiv'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     F=dstiv(eye(p2))';
 
   case {'gabor','dgt'}
-    error(nargchk(4,5,nargin));
+    complainif_argnonotinrange(nargin,4,5,mfilename);
     g=p2;    
     if nargin==4
       L=length(g);
@@ -123,7 +123,7 @@ switch(lower(ttype))
     F=idgt(c,g,a);
 
   case {'wilson','dwilt'}
-    error(nargchk(3,4,nargin));
+    complainif_argnonotinrange(nargin,3,4,mfilename);
     g=p2;    
     if nargin==3
       L=length(g);
@@ -136,7 +136,7 @@ switch(lower(ttype))
     F=idwilt(c,g);
 
   case {'wmdct'}
-    error(nargchk(3,4,nargin));
+    complainif_argnonotinrange(nargin,3,4,mfilename);
     g=p2;    
     if nargin==3
       L=length(g);
@@ -149,13 +149,13 @@ switch(lower(ttype))
     F=iwmdct(c,g);
 
   case {'spread','spreadop'}
-    error(nargchk(2,2,nargin));
+    complainif_argnonotinrange(nargin,2,2,mfilename);
     c=p2;
     L=size(c,2);
     F=spreadop(eye(L),c);
 
   case {'gabmul'}
-    error(nargchk(3,5,nargin)); 
+    complainif_argnonotinrange(nargin,3,5,mfilename);
     sym=p2;
     M=size(sym,1);
     N=size(sym,2);
@@ -178,7 +178,7 @@ switch(lower(ttype))
     end;
 
   case {'ndgt'}
-    error(nargchk(5,5,nargin));
+    complainif_argnonotinrange(nargin,5,5,mfilename);
     g=p2;
     a=p3;
     M=p4;
@@ -199,7 +199,7 @@ switch(lower(ttype))
     
 
   case {'zak'}
-    error(nargchk(3,5,nargin))
+    complainif_argnonotinrange(nargin,3,5,mfilename);
     L=p2;
     a=p3;
     N=L/a;

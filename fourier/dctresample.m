@@ -20,7 +20,7 @@ function f=dctresample(f,L,dim)
 %   AUTHOR: Peter L. Søndergaard
   
 % ------- Checking of input --------------------
-error(nargchk(2,3,nargin));
+complainif_argnonotinrange(nargin,2,3,mfilename);
 
 if nargin<3
   dim=[];

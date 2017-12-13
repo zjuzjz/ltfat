@@ -55,7 +55,7 @@ function [c,Ls]=wmdct2(f,g1,p3,p4,p5)
 
 %   AUTHOR : Peter L. Søndergaard.
 
-error(nargchk(3,5,nargin));
+complainif_argnonotinrange(nargin,3,5,mfilename);
 
 L=[];
 

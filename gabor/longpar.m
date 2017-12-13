@@ -25,7 +25,7 @@ function [L,tfr]=longpar(varargin)
 %
 %   See also:  dgt, dwilt, pgauss, psech, pherm
 
-error(nargchk(3,4,nargin));
+complainif_argnonotinrange(nargin,3,4,mfilename);
 
 if ischar(varargin{1})
     ttype=varargin{1};

@@ -12,7 +12,7 @@ function cout=wil2rect(cin);
 %
 %   See also: rect2wil, dwilt, wmdct
   
-error(nargchk(1,1,nargin));
+complainif_argnonotinrange(nargin,1,1,mfilename);
   
 M=size(cin,1)/2;
 N=size(cin,2)*2;

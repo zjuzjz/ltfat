@@ -9,8 +9,7 @@ function coef=spreadfun(T)
 %
 %   See also:  spreadop, tconv, spreadinv, spreadadj
 
-
-error(nargchk(1,1,nargin));
+complainif_argnonotinrange(nargin,1,1,mfilename);
 
 if ndims(T)>2 || size(T,1)~=size(T,2)
     error('Input symbol T must be a square matrix.');
