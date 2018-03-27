@@ -137,6 +137,9 @@ clean:
 pushforge:
 	git push https://git.code.sf.net/p/octave/ltfat octaveforge:master
 
+forcepushforge:
+	git push --force https://git.code.sf.net/p/octave/ltfat octaveforge:master
+
 ##
 ## Recipes for testing purposes
 ##
