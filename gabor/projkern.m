@@ -34,7 +34,7 @@ function c=projkern(c,p2,p3,p4,p5);
 %
 %   See also: dgt, idgt
 
-error(nargchk(2,4,nargin));
+complainif_argnonotinrange(nargin,2,4,mfilename);
 
 M=size(c,1);
 N=size(c,2);

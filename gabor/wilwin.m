@@ -99,7 +99,7 @@ function [g,info] = wilwin(g,M,L,callfun);
 %   See also: pgauss, firwin, gabwin
 
 % Assert correct input.
-error(nargchk(2,4,nargin));
+complainif_argnonotinrange(nargin,2,4,mfilename);
 
 if nargin==2
   L=[];

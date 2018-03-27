@@ -12,11 +12,11 @@
 /* Assuming __BASE_FILE__ is known by the compiler.
    Otherwise specify this filename
    e.g. #define MEX_FILE "comp_col2diag.c"  */
-#define MEX_FILE __BASE_FILE__
+#define MEX_FILE vect2cell.c
 #include "ltfat_mex_template_helper.h"
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 
 // LTFAT_COMPLEXTYPE, LTFAT_SINGLE, LTFAT_DOUBLE
 

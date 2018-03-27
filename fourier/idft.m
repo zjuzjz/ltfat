@@ -24,7 +24,7 @@ function f=idft(c,N,dim)
 %   TESTING: TEST_IDFT
 %   REFERENCE: TEST_DFT
 
-error(nargchk(1,3,nargin));
+complainif_argnonotinrange(nargin,1,3,mfilename);
 
 if nargin<3
   dim=[];  

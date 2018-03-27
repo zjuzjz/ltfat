@@ -44,7 +44,7 @@ function g=ref_pchirp(L,n)
 %   TESTING: OK
 %   REFERENCE: OK
 
-error(nargchk(2,2,nargin));
+complainif_argnonotinrange(nargin,2,2,mfilename);
 
 % Compute normalized chirp
 

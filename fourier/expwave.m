@@ -20,7 +20,7 @@ function h=expwave(L,m,cent);
 %   TESTING: OK
 %   REFERENCE: OK
 
-error(nargchk(2,3,nargin));
+complainif_argnonotinrange(nargin,2,3,mfilename);
 
 if nargin==2
   cent=0;

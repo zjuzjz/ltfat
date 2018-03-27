@@ -9,10 +9,7 @@
 
 #endif /* _LTFAT_MEX_FILE */
 
-/* Obtain this filename. */
-#if defined(__GNUC__) || defined(__ICC)
-#define MEX_FILE __BASE_FILE__
-#endif
+#define MEX_FILE comp_iatrousfilterbank_td.c
 
 /* The following header includes this file twice setting either LTFAT_SINGLE or LTFAT_DOUBLE.
     At the end of the header, LTFAT_SINGLE or LTFAT_DOUBLE is unset. */
@@ -29,7 +26,7 @@
     e.g. use mxGetData intead of mxGetPr (or recast to LTFAT_TYPE*)
          mxCreateNumericArray with macro LTFAT_MX_CLASSID instead of createDoubleMatrix
  */
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 /*
 %COMP_IATROUSFILTERBANK_TD   Synthesis Uniform filterbank by conv2
 %   Usage:  f=comp_iatrousfilterbank_fft(c,g,a,offset);
@@ -76,9 +73,9 @@ void LTFAT_NAME(ltfatMexFnc)( int UNUSED(nlhs), mxArray *plhs[],
 
     // POINTER TO THE FILTERS
     const LTFAT_TYPE* gPtrs[M];
-    ltfatInt offset[M];
-    ltfatInt a[M];
-    ltfatInt filtLens[M];
+    ltfat_int offset[M];
+    ltfat_int a[M];
+    ltfat_int filtLens[M];
 
     for (mwSize m = 0; m < M; m++)
     {

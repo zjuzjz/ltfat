@@ -13,7 +13,7 @@ function f=izak(c);
 %   TESTING: TEST_ZAK
 %   REFERENCE: OK
 
-error(nargchk(1,1,nargin));
+complainif_argnonotinrange(nargin,1,1,mfilename);
 
 a=size(c,1);
 N=size(c,2);

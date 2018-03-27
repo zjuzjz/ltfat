@@ -33,10 +33,21 @@ The dependency on BLAS and LAPACK can be disabled by calling
 make NOBLASLAPACK=1
 ```
 
-Docuemntation
+The dependency on FFTW can be disabled by calling
+```
+make FFTBACKEND=KISS
+```
+The internal [KISS FFT](http://kissfft.sourceforge.net/) implementation will be used.
+
+Documentation
 -------------
 
 Doxygen generated documentation is available [here](http://ltfat.github.io/libltfat).
+
+Contacts
+--------
+
+libltfat was written by Peter L. Søndergaard and Zdeněk Průša.
 
 
 

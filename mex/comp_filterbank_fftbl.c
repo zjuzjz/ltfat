@@ -9,11 +9,11 @@
 
 #endif // _LTFAT_MEX_FILE - INCLUDED ONCE
 
-#define MEX_FILE __BASE_FILE__
+#define MEX_FILE comp_filterbank_fftbl.c
 #include "ltfat_mex_template_helper.h"
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 #include <math.h>
 #include "config.h"
 

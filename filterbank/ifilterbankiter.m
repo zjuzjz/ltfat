@@ -1,4 +1,4 @@
-function [f,iter,relres]=ifilterbankiter(c,g,a,varargin)
+function [f,relres,iter]=ifilterbankiter(c,g,a,varargin)
 %IFILTERBANKITER  Filter bank iterative inversion
 %   Usage:  f=ifilterbankiter(c,g,a);
 %
@@ -67,7 +67,7 @@ function [f,iter,relres]=ifilterbankiter(c,g,a,varargin)
 %
 %   See also: filterbank, ufilterbank, ifilterbank, filterbankdual
 %
-%   References: ltfatnote027
+%   References: ltfatnote027 nehobaprpide18
 
 complainif_notenoughargs(nargin,3,'IFILTERBANKITER');
 
@@ -87,5 +87,5 @@ else
     F = frame('filterbank',g,a,numel(g));
 end
 
-[f,iter,relres] = frsyniter(F,framenative2coef(F,c),'Ls',Ls,flags.alg,'maxit',kv.maxit,'tol',kv.tol);
+[f,relres,iter] = frsyniter(F,framenative2coef(F,c),'Ls',Ls,flags.alg,'maxit',kv.maxit,'tol',kv.tol);
 
