@@ -32,6 +32,8 @@ TMP_DIR         := $(TARGET_DIR)/$(PACKAGE)-tmp
 RELEASE_TARBALL := $(TARGET_DIR)/$(PACKAGE)-$(VERSION).tar.gz
 HTML_DIR        := $(TARGET_DIR)/$(PACKAGE)-html
 HTML_TARBALL    := $(TARGET_DIR)/$(PACKAGE)-html.tar.gz
+RELEASE_INFOFILE := $(TARGET_DIR)/$(PACKAGE)-$(VERSION)-info
+
 
 MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 ## These can be set by environment variables which allow to easily
@@ -117,9 +119,9 @@ $(HTML_DIR): install
 ## To make a release, build the distribution and html tarballs.
 release: dist html
 	md5sum $(RELEASE_TARBALL) $(HTML_TARBALL) > $(RELEASE_DIR).md5
-	@echo "Upload @ https://sourceforge.net/p/octave/package-releases/new/"
-	@echo "    and inform to rebuild release with commit hash '$$(git rev-parse --short HEAD)'"
-	@echo 'Execute: git tag -l "of-v${VERSION}"'
+	@echo "Upload @ https://sourceforge.net/p/octave/package-releases/new/" > $(RELEASE_INFOFILE)
+	@echo "    and inform to rebuild release with commit hash '$$(git rev-parse --short HEAD)'" >> $(RELEASE_INFOFILE) 
+	@echo 'Execute: git tag -l "of-v${VERSION}"' >> $(RELEASE_INFOFILE) 
 
 install: $(RELEASE_TARBALL)
 	@echo "Installing package locally ..."
