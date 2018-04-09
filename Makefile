@@ -98,7 +98,7 @@ html: $(HTML_TARBALL)
 
 ## An implicit rule with a recipe to build the tarballs correctly.
 $(RELEASE_TARBALL): $(MAT2DOC) update
-    LANG=C python3 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR) --projectname=$(PACKAGE)
+	LANG=C python3 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR) --projectname=$(PACKAGE)
 	mv $(TMP_DIR)/$(PACKAGE)-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
 	mv $(TMP_DIR)/$(PACKAGE)-mat/$(PACKAGE) $(RELEASE_DIR)
 
