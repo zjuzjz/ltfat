@@ -8,7 +8,7 @@
 ## without any warranty.
 
 ## This makefile requires 
-##	 python 2.x  --- python and modules are not checked in this Makefile
+##	 python 3.x  --- python and modules are not checked in this Makefile
 ##		pygments  
 ##		docutils  
 ##
@@ -32,6 +32,8 @@ TMP_DIR         := $(TARGET_DIR)/$(PACKAGE)-tmp
 RELEASE_TARBALL := $(TARGET_DIR)/$(PACKAGE)-$(VERSION).tar.gz
 HTML_DIR        := $(TARGET_DIR)/$(PACKAGE)-html
 HTML_TARBALL    := $(TARGET_DIR)/$(PACKAGE)-html.tar.gz
+RELEASE_INFOFILE := $(TARGET_DIR)/$(PACKAGE)-$(VERSION)-info
+
 
 MAT2DOC         := $(TARGET_DIR)/mat2doc/mat2doc.py
 ## These can be set by environment variables which allow to easily
@@ -83,7 +85,7 @@ help:
 	@echo "   clean   - Remove releases, html documentation, and oct files"
 
 $(MAT2DOC):
-	git clone -b notestargets https://github.com/ltfat/mat2doc $(TARGET_DIR)/mat2doc
+	git clone https://github.com/ltfat/mat2doc $(TARGET_DIR)/mat2doc
 
 update:
 	( cd $(TARGET_DIR)/mat2doc ; \
@@ -96,7 +98,7 @@ html: $(HTML_TARBALL)
 
 ## An implicit rule with a recipe to build the tarballs correctly.
 $(RELEASE_TARBALL): $(MAT2DOC) update
-	@python2 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR) --projectname=$(PACKAGE)
+	LANG=C python3 $(MAT2DOC) . mat --script=release_keep_tests.py --octpkg --unix --outputdir=$(TMP_DIR) --projectname=$(PACKAGE)
 	mv $(TMP_DIR)/$(PACKAGE)-files/$(PACKAGE)-$(VERSION).tar.gz $(RELEASE_TARBALL)
 	mv $(TMP_DIR)/$(PACKAGE)-mat/$(PACKAGE) $(RELEASE_DIR)
 
@@ -117,9 +119,9 @@ $(HTML_DIR): install
 ## To make a release, build the distribution and html tarballs.
 release: dist html
 	md5sum $(RELEASE_TARBALL) $(HTML_TARBALL) > $(RELEASE_DIR).md5
-	@echo "Upload @ https://sourceforge.net/p/octave/package-releases/new/"
-	@echo "    and inform to rebuild release with commit hash '$$(git rev-parse --short HEAD)'"
-	@echo 'Execute: git tag -l "of-v${VERSION}"'
+	@echo "Upload @ https://sourceforge.net/p/octave/package-releases/new/" > $(RELEASE_INFOFILE)
+	@echo "    and inform to rebuild release with commit hash '$$(git rev-parse --short HEAD)'" >> $(RELEASE_INFOFILE) 
+	@echo 'Execute: git tag -l "of-v${VERSION}"' >> $(RELEASE_INFOFILE) 
 
 install: $(RELEASE_TARBALL)
 	@echo "Installing package locally ..."
@@ -136,6 +138,9 @@ clean:
 
 pushforge:
 	git push https://git.code.sf.net/p/octave/ltfat octaveforge:master
+
+forcepushforge:
+	git push --force https://git.code.sf.net/p/octave/ltfat octaveforge:master
 
 ##
 ## Recipes for testing purposes
