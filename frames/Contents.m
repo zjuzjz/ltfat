@@ -1,6 +1,6 @@
 % LTFAT - Frames
 %
-%  Peter L. Søndergaard, 2012 - 2016.
+%  Peter L. Søndergaard, 2012 - 2018.
 %
 %  Creation of a frame object
 %    FRAME             - Construct a new frame
@@ -29,6 +29,7 @@
 %    FRAMELENGTH       - Length of frame to expand signal
 %    FRAMELENGTHCOEF   - Length of frame given a set of coefficients
 %    FRAMECLENGTH      - Number of coefficients given input signal length
+%    FRAMEVECTORNORMS  - Norms of the frame vectors
 %
 %  Coefficients conversions
 %    FRAMECOEF2NATIVE  - Convert to native transform format
@@ -39,6 +40,7 @@
 %
 %  Non-linear analysis and synthesis
 %    FRANABP           - Basis pursuit using the SALSA algorithm.
+%    FRANAMP           - Orthogonal matching pursuit
 %    FRANALASSO        - LASSO thresholding using Landweber iterations.
 %    FRANAGROUPLASSO   - Group LASSO thresholding.
 %    FRSYNABS          - Frame synthesis from magnitude of coefficients

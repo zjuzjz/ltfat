@@ -8,11 +8,11 @@
 
 #endif /* _LTFAT_MEX_FILE */
 
-#define MEX_FILE __BASE_FILE__
+#define MEX_FILE comp_heapint.c
 #include "ltfat_mex_template_helper.h"
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 
 // Calling convention:
 //                    0     1     2 3   4         5
@@ -33,7 +33,7 @@ void LTFAT_NAME(ltfatMexFnc)( int UNUSED(nlhs), mxArray* plhs[],
     const LTFAT_REAL* fgrad = mxGetData(prhs[2]);
     mwSize a     = (mwSize)mxGetScalar(prhs[3]);
     LTFAT_REAL tol = (LTFAT_REAL) mxGetScalar(prhs[4]);
-    int phasetype = (int)mxGetScalar(prhs[5]);
+    int phasetype = (int)mxGetScalar(prhs[5]) == 1 ? LTFAT_TIMEINV: LTFAT_FREQINV;
 
     // Get matrix dimensions.
     mwSize M = mxGetM(mxs);

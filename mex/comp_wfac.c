@@ -8,11 +8,11 @@
 
 #endif /* _LTFAT_MEX_FILE */
 
-#define MEX_FILE __BASE_FILE__
+#define MEX_FILE comp_wfac.c
 #include "ltfat_mex_template_helper.h"
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 
 // Calling convention:
 //  comp_wfac(g,a,M);
@@ -21,18 +21,18 @@ void LTFAT_NAME(ltfatMexFnc)( int UNUSED(nlhs), mxArray *plhs[],
                               int UNUSED(nrhs), const mxArray *prhs[] )
 {
    int L, R, N, c, d, p, q;
-   ltfatInt a,M,h_a,h_m;
+   ltfat_int a,M,h_a,h_m;
 
    // Get matrix dimensions.
    L = mxGetM(prhs[0]);
    R = mxGetN(prhs[0]);
 
-   a=(ltfatInt)mxGetScalar(prhs[1]);
-   M=(ltfatInt)mxGetScalar(prhs[2]);
+   a=(ltfat_int)mxGetScalar(prhs[1]);
+   M=(ltfat_int)mxGetScalar(prhs[2]);
 
    N=L/a;
 
-   c=gcd(a, M, &h_a, &h_m);
+   c=ltfat_gcd(a, M, &h_a, &h_m);
    p=a/c;
    q=M/c;
    d=N/q;

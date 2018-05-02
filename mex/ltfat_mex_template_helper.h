@@ -110,6 +110,7 @@ NOCOMPLEXFMTCHANGE
 
 /** HEADERS */
 #include "ltfat.h"
+#include "ltfat/macros.h"
 #include <stdio.h>
 #include <string.h>
 #include <mex.h>
@@ -118,6 +119,11 @@ NOCOMPLEXFMTCHANGE
 EXPORT_SYM
 void mexFunctionInner( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] );
 /** C99 headers for a generic complex number manipulations */
+
+
+ptrdiff_t mexstatus = 0;
+char mexerrormsg[500] = {0};
+#define CHSTAT(A) do{ ptrdiff_t checkstatustmp=(A); if(checkstatustmp<0){ mexstatus = checkstatustmp; goto error;}}while(0)
 
 // Storing function pointers to exitFunctions
 #define MEXEXITFNCCOUNT 4
@@ -138,32 +144,12 @@ void ltfatMexAtExitGlobal(void)
 #endif
 }
 
-#ifdef EXPORTALIAS
-
-#define STR_EXPAND(tok) tok##_atexit
-#define STR(tok) STR_EXPAND(tok)
-
-/*
-  If EXPORTALIAS macro is set, a wrapper function for the mexFunction is created.
-  This allows to call the MEX function from another MEX function without having to
-  deal with which mexFunction to call.
-*/
-EXPORT_SYM
-void EXPORTALIAS( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] );
-
-void EXPORTALIAS( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
+void cust_ltfat_error_handler (int ltfat_errno, const char* file, int line,
+                            const char* funcname, const char* reason)
 {
-   mexFunctionInner(nlhs, plhs, nrhs, prhs);
+    snprintf(mexerrormsg, 500, "[ERROR %d]: (%s:%d): [%s]: %s\n",
+             -ltfat_errno, file, line, funcname, reason );
 }
-
-EXPORT_SYM
-void STR(EXPORTALIAS)();
-
-void STR(EXPORTALIAS)()
-{
-   ltfatMexAtExitGlobal();
-}
-#endif
 
 
 /** Helper function headers.
@@ -192,9 +178,9 @@ Include MEX source code (MEX_FILE) for each template data type according to the 
     REALARGS
     COMPLEXINDEPENDENT
 
-For each inclusion a whole set of macros is defined (see src/ltfat_types.h):
+For each inclusion a whole set of macros is defined (see src/ltfat/types.h):
 
-    MACRO SETS (from ltfat_types.h)
+    MACRO SETS (from ltfat/types.h)
           MACRO                                     EXPANDS TO
                               (double)           (single)           (complex double)      (complex single)
     ------------------------------------------------------------------------------------------------------
@@ -210,36 +196,40 @@ For each inclusion a whole set of macros is defined (see src/ltfat_types.h):
     By default, a macro set (double) is used.
 */
 
+#define MEX_FILE_STRINGIFY(x) #x
+#define MEX_FILE_STR(x) MEX_FILE_STRINGIFY(x)
+#define MEX_FILE_S MEX_FILE_STR(MEX_FILE)
+
 
 #define LTFAT_DOUBLE
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 #include "ltfat_mex_typeindependent.h"
 #include "ltfat_mex_typecomplexindependent.h"
 void LTFAT_NAME(ltfatMexFnc)(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]);
-#include MEX_FILE
+#include MEX_FILE_S
 #ifdef COMPLEXINDEPENDENT
 #  define LTFAT_COMPLEXTYPE
-#  include "ltfat_types.h"
+#  include "ltfat/types.h"
 #  include "ltfat_mex_typecomplexindependent.h"
 void LTFAT_NAME(ltfatMexFnc)(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]);
-#  include MEX_FILE
+#  include MEX_FILE_S
 #  undef LTFAT_COMPLEXTYPE
 #endif
 #undef LTFAT_DOUBLE
 
 #ifdef SINGLEARGS
 #  define LTFAT_SINGLE
-#  include "ltfat_types.h"
+#  include "ltfat/types.h"
 #  include "ltfat_mex_typeindependent.h"
 #  include "ltfat_mex_typecomplexindependent.h"
 void LTFAT_NAME(ltfatMexFnc)(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]);
-#  include MEX_FILE
+#  include MEX_FILE_S
 #  ifdef COMPLEXINDEPENDENT
 #    define LTFAT_COMPLEXTYPE
-#    include "ltfat_types.h"
+#    include "ltfat/types.h"
 #    include "ltfat_mex_typecomplexindependent.h"
 void LTFAT_NAME(ltfatMexFnc)(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]);
-#    include MEX_FILE
+#    include MEX_FILE_S
 #    undef LTFAT_COMPLEXTYPE
 #  endif
 #  undef LTFAT_SINGLE
@@ -548,6 +538,7 @@ void mexFunction( int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[] )
    {
       // This fails when mexFunction is not called directly from Matlab or another MEX function
       mexAtExit(ltfatMexAtExitGlobal);
+      ltfat_set_error_handler(cust_ltfat_error_handler);
       exitFncRegistered = 1;
    }
 
@@ -725,6 +716,11 @@ void mexFunctionInner(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]
 
 #endif
 
+   if (mexstatus < 0)
+   {
+        mexstatus = 0;
+        mexErrMsgIdAndTxt("libltfat:internal", mexerrormsg);
+   }
 }
 #endif // _LTFAT_MEX_TEMPLATEHELPER_H
 #endif // defined(MEX_FILE)

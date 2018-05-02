@@ -44,14 +44,12 @@
 #endif // _LTFAT_MEX_FILE - INCLUDED ONCE
 
 /* Obtain this filename. */
-#if defined(__GNUC__) || defined(__ICC)
-#define MEX_FILE __BASE_FILE__
-#endif
+#define MEX_FILE comp_filterbank_td.c
 #include "ltfat_mex_template_helper.h"
 
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 /** USER DEFINED HEADERS **/
 #include "math.h"
 
@@ -93,18 +91,18 @@ LTFAT_NAME(ltfatMexFnc)( int UNUSED(nlhs), mxArray *plhs[],
 
     // POINTER TO THE FILTERS
     const LTFAT_TYPE* gPtrs[M];
-    ltfatInt filtLen[M];
-    ltfatInt a[M];
-    ltfatInt offset[M];
+    ltfat_int filtLen[M];
+    ltfat_int a[M];
+    ltfat_int offset[M];
 
     // POINTER TO OUTPUTS
     LTFAT_TYPE* cPtrs[M]; // C99 feature
     plhs[0] = mxCreateCellMatrix(M, 1);
     for(mwIndex m=0; m<M; ++m)
     {
-        a[m]= (ltfatInt) aDouble[m];
-        offset[m] = (ltfatInt) offsetDouble[m];
-        filtLen[m] = (ltfatInt) mxGetNumberOfElements(mxGetCell(mxg,m));
+        a[m]= (ltfat_int) aDouble[m];
+        offset[m] = (ltfat_int) offsetDouble[m];
+        filtLen[m] = (ltfat_int) mxGetNumberOfElements(mxGetCell(mxg,m));
         mwSize outLen = (mwSize) filterbank_td_size(L,a[m],filtLen[m],
                                                 offset[m],ext);
         mxSetCell(plhs[0], m,

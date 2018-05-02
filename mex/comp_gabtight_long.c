@@ -8,11 +8,11 @@
 
 #endif /* _LTFAT_MEX_FILE */
 
-#define MEX_FILE __BASE_FILE__
+#define MEX_FILE comp_gabtight_long.c
 #include "ltfat_mex_template_helper.h"
 
 #if defined(LTFAT_SINGLE) || defined(LTFAT_DOUBLE)
-#include "ltfat_types.h"
+#include "ltfat/types.h"
 
 // Calling convention:
 // comp_gabtight_long(g,a,M);
@@ -32,6 +32,6 @@ void LTFAT_NAME(ltfatMexFnc)( int UNUSED(nlhs), mxArray *plhs[],
    LTFAT_TYPE* gd_combined = mxGetData(plhs[0]);
    const LTFAT_TYPE* g_combined = mxGetData(prhs[0]);
 
-   LTFAT_NAME(gabtight_long)(g_combined, L, R, a, M, gd_combined);
+   LTFAT_NAME(multiwingabtight_long)(g_combined, L, R, a, M, gd_combined);
 }
 #endif

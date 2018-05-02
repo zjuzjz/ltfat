@@ -2,74 +2,101 @@
 #
 # Builds three static and three shared libraries (default prefix is build/):
 #
-# 	libltfat.a     Contains double, single and common code
-# 	libltfatd.a    Contains double and common code
-# 	libltfatf.a    Contains single and common code
+# 	libltfat.a(.so)     Contains double, single and common code
+# 	libltfatd.a(.so)    Contains double and common code
+# 	libltfatf.a(.so)    Contains single and common code
 #
 # make CROSS=x86_64-w64-mingw32.static-
 # or
 # make CROSS=x86_64-w64-mingw32.static- NOBLASLAPACK=1
 #
+# Examples:
+# ---------
 #
+# Linking against BLAS and LAPACK from Matlab (if shared libs are desired):
+#  		make BLASLAPACKLIBS="-L/usr/local/MATLAB_R2013a/bin/glnxa64 -lmwblas -lmwlapack" 
+#
+#  		make clean && make BLASLAPACKLIBS="-L/usr/local/MATLAB_R2013a/bin/glnxa64 -lmwblas -lmwlapack" && make build/ltfat.h
 
 include ostools.mk
 
 ifdef CROSS
 	CC=$(CROSS)gcc
+	CXX=$(CROSS)g++
 	AR=$(CROSS)ar
-	OBJCOPY=$(CROSS)objcopy
 	RANLIB=$(CROSS)ranlib
 	buildprefix ?= build/$(CROSS)
 	objprefix ?= obj/$(CROSS)
 	MINGW=1
 else
 	CC?=gcc
+	CXX?=g++
 	AR?=ar
-	OBJCOPY?=objcopy
 	RANLIB?=ranlib
 	buildprefix ?= build
 	objprefix ?= obj
 endif
 
+# Base CFLAGS
+CFLAGS+=-Wall -Wextra -std=c99
+CXXFLAGS+=-Wall -Wextra -std=c++11 -fno-exceptions -fno-rtti
+LFLAGS = -Wl,--no-undefined -Lbuild/$(CROSS) $(OPTLPATH) -Wl,-rpath,$$ORIGIN
+
+MATLABROOT ?= /usr/local/MATLAB_R2017a
 PREFIX ?= /usr/local
 LIBDIR = $(PREFIX)/lib
 INCDIR = $(PREFIX)/include
 
-# Base CFLAGS
-CFLAGS+=-Ithirdparty -Wall -Wextra -pedantic -std=gnu99 -Iinclude -Iinclude/ltfat -Ithirdparty $(OPTCFLAGS)
-
 # The following adds parameters to CFLAGS
+COMPTARGET ?= release
 include comptarget.mk
 
-# Define source files from src/
-include filedefs.mk
+ifdef MINGW
+	EXTRALFLAGS += -Wl,--out-implib,$@.a -static-libgcc
+	BLASLAPACKLIBS?=-llapack -lblas -lgfortran -lquadmath
+	# NOTE that if both static and shared libraries are to be built, 
+	# the obj files must be cleared in between make calls i.e.
+	# make shared
+	# make cleanobj
+	# make static 
+	ifneq ($(MAKECMDGOALS),shared)
+		CFLAGS += -DLTFAT_BUILD_STATIC
+		CXXFLAGS += -DLTFAT_BUILD_STATIC
+	else
+		CFLAGS += -DLTFAT_BUILD_SHARED
+		CXXFLAGS += -DLTFAT_BUILD_SHARED
+	endif
+else
+	CFLAGS +=-fPIC
+	CXXFLAGS +=-fPIC
+endif
+
+ifdef USECPP
+ifeq ($(USECPP),1)
+	CC = $(CXX)
+	CFLAGS = $(CXXFLAGS)
+endif
+endif
 
 FFTWLIBS?=-lfftw3 -lfftw3f
+BLASLAPACKLIBS?=-llapack -lblas
+MODULE ?= libltfat
+SRCDIR=modules/$(MODULE)/
+CFLAGS+=-I$(SRCDIR)include
+objprefix:=$(objprefix)/$(MODULE)
+headerbase=$(MODULE:lib%=%)
 
-ifdef MINGW
-	EXTRALFLAGS = -Wl,--out-implib,$@.a -static-libgcc
-	BLASLAPACKLIBS?=-llapack -lblas -lgfortran -lquadmath
-else
-	CFLAGS += -fPIC
-	BLASLAPACKLIBS?=-llapack -lblas
-endif
+# Define source files from $(SRCDIR)/
+include $(SRCDIR)src/filedefs.mk
 
-LFLAGS = -Wl,--no-undefined $(OPTLPATH)
-# Dependencies
-ifndef NOBLASLAPACK
-	LFLAGS += $(BLASLAPACKLIBS)
+ifdef NOBLASLAPACK
+	CFLAGS+=-DNOBLASLAPACK
 endif
-LFLAGS += $(FFTWLIBS) -lm $(EXTRALFLAGS) $(OPTLFLAGS)
 
 # Convert *.c names to *.o
 toCompile = $(patsubst %.c,%.o,$(files))
 toCompile_complextransp = $(patsubst %.c,%.o,$(files_complextransp))
 toCompile_notypechange = $(patsubst  %.c,%.o,$(files_notypechange))
-
-ifndef NOBLASLAPACK
-	toCompile += $(patsubst %.c,%.o,$(files_blaslapack))
-	toCompile_complextransp += $(patsubst %.c,%.o,$(files_blaslapack_complextransp))
-endif
 
 COMMONFILES = $(addprefix $(objprefix)/common/d,$(toCompile_notypechange))
 COMMONFILESFORSFILES = $(addprefix $(objprefix)/common/s,$(toCompile_notypechange))
@@ -79,10 +106,13 @@ DFILES   = $(addprefix $(objprefix)/double/,$(toCompile) $(toCompile_complextran
 SFILES   = $(addprefix $(objprefix)/single/,$(toCompile) $(toCompile_complextransp)) \
 		   $(addprefix $(objprefix)/complexsingle/,$(toCompile_complextransp))
 
+CFLAGS += $(EXTRACFLAGS) $(OPTCFLAGS)
+LFLAGS += $(EXTRALFLAGS) $(OPTLFLAGS) -lm
+
 # Define libraries
-DSTATIC = libltfatd.a
-SSTATIC = libltfatf.a
-DSSTATIC = libltfat.a
+DSTATIC = $(MODULE)d.a
+SSTATIC = $(MODULE)f.a
+DSSTATIC = $(MODULE).a
 
 ifndef MINGW
 	DSHARED = $(patsubst %.a,%.so,$(DSTATIC))
@@ -105,91 +135,104 @@ SO_DSTARGET=$(buildprefix)/$(DSSHARED)
 DDEP = $(buildprefix) $(objprefix)/double $(objprefix)/complexdouble $(objprefix)/common
 SDEP = $(buildprefix) $(objprefix)/single $(objprefix)/complexsingle $(objprefix)/common
 
-all: static shared
+all: static 
 
 $(DSTARGET): $(DDEP) $(SDEP) $(COMMONFILES) $(DFILES) $(SFILES)
-	$(AR) rvu $@ $(COMMONFILES) $(DFILES) $(SFILES)
+	$(AR) rv $@ $(COMMONFILES) $(DFILES) $(SFILES)
 	$(RANLIB) $@
 
 $(DTARGET): $(DDEP) $(DFILES) $(COMMONFILES)
-	$(AR) rvu $@ $(DFILES) $(COMMONFILES)
+	$(AR) rv $@ $(DFILES) $(COMMONFILES)
 	$(RANLIB) $@
 
 $(STARGET): $(SDEP) $(SFILES) $(COMMONFILESFORSFILES)
-	$(AR) rvu $@ $(SFILES) $(COMMONFILESFORSFILES)
+	$(AR) rv $@ $(SFILES) $(COMMONFILESFORSFILES)
 	$(RANLIB) $@
 
 $(SO_DSTARGET): $(DDEP) $(SDEP) $(COMMONFILES) $(DFILES) $(SFILES)
-	$(CC) -shared -fPIC -o $@ $(COMMONFILES) $(DFILES) $(SFILES) $(LFLAGS)
+	$(CC) -shared -fPIC -o $@ $(COMMONFILES) $(DFILES) $(SFILES) $(LFLAGS) $(DSLFLAGS) 
 
 $(SO_DTARGET): $(DDEP) $(COMMONFILES) $(DFILES)
-	$(CC) -shared -fPIC -o $@ $(COMMONFILES) $(DFILES) $(LFLAGS)
+	$(CC) -shared -fPIC -o $@ $(COMMONFILES) $(DFILES) $(LFLAGS) $(DLFLAGS)
 
 $(SO_STARGET): $(SDEP) $(SFILES) $(COMMONFILESFORSFILES)
-	$(CC) -shared -fPIC -o $@ $(COMMONFILESFORSFILES) $(SFILES) $(LFLAGS)
+	$(CC) -shared -fPIC -o $@ $(COMMONFILESFORSFILES) $(SFILES) $(LFLAGS) $(SLFLAGS)
 
-$(objprefix)/common/d%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_DOUBLE -c $< -o $@ $(OPTCFLAGS)
+$(objprefix)/common/d%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS) -DLTFAT_DOUBLE -c $< -o $@ 
 
-$(objprefix)/double/%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_DOUBLE  -c $< -o $@
+$(objprefix)/double/%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS) -DLTFAT_DOUBLE  -c $< -o $@
 
-$(objprefix)/complexdouble/%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_DOUBLE -DLTFAT_COMPLEXTYPE -c $< -o $@
+$(objprefix)/complexdouble/%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS) -DLTFAT_DOUBLE -DLTFAT_COMPLEXTYPE -c $< -o $@
 
-$(objprefix)/common/s%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_SINGLE -c $< -o $@
+$(objprefix)/double/kiss_%.o: $(SRCDIR)thirdparty/kissfft/%.c
+	$(CC) $(CFLAGS) -DLTFAT_DOUBLE -c $< -o $@ 
 
-$(objprefix)/single/%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_SINGLE  -c $< -o $@
+$(objprefix)/common/s%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS)  -DLTFAT_SINGLE -c $< -o $@
 
-$(objprefix)/complexsingle/%.o: src/%.c
-	$(CC) $(CFLAGS) $(OPTCFLAGS) -DLTFAT_SINGLE -DLTFAT_COMPLEXTYPE -c $< -o $@
+$(objprefix)/single/%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS) -DLTFAT_SINGLE  -c $< -o $@
 
+$(objprefix)/complexsingle/%.o: $(SRCDIR)src/%.c
+	$(CC) $(CFLAGS) -DLTFAT_SINGLE -DLTFAT_COMPLEXTYPE -c $< -o $@
+
+$(objprefix)/single/kiss_%.o: $(SRCDIR)thirdparty/kissfft/%.c
+	$(CC) $(CFLAGS) -DLTFAT_SINGLE  -c $< -o $@
 
 $(buildprefix):
-	@$(MKDIR) $(buildprefix)
+	@$(MKDIR) $(subst /,$(PS)/,$(buildprefix))
 
-$(objprefix)/common:
-	@$(MKDIR) $(objprefix)$(PS)common
+$(objprefix)/%:
+	@$(MKDIR) $(subst /,$(PS),$@)
 
-$(objprefix)/double:
-	@$(MKDIR) $(objprefix)$(PS)double
+.PHONY: clean cleanobj help doc doxy static shared allshared munit unit $(MODULE)
 
-$(objprefix)/single:
-	@$(MKDIR) $(objprefix)$(PS)single
-
-$(objprefix)/complexdouble:
-	@$(MKDIR) $(objprefix)$(PS)complexdouble
-
-$(objprefix)/complexsingle:
-	@$(MKDIR) $(objprefix)$(PS)complexsingle
-
-.PHONY: clean help doc static shared
+doc:
+	(cd modules/libltfat ; doxygen doc/doxyconfig)
+	(cd modules/libphaseret ; doxygen doc/doxyconfig)
 
 static: $(DTARGET) $(STARGET) $(DSTARGET)
 
-shared: $(SO_DTARGET) $(SO_STARGET) $(SO_DSTARGET)
+allshared:
+	$(MAKE) clean
+	$(MAKE) MODULE=libltfat shared 
+	$(MAKE) MODULE=libphaseret shared
 
-clean:
-	@$(RMDIR) build
+shared: $(SO_DTARGET) $(SO_STARGET) $(SO_DSTARGET)
+	$(MAKE) $(buildprefix)/$(headerbase).h USECPP=0 CC=gcc
+
+cleanobj:
 	@$(RMDIR) obj
+
+clean: cleanobj
+	@$(RMDIR) build
 
 help:
 	@echo "USAGE: make [target]"
 	@echo "Options:"
 	@echo "    make [target] CONFIG=debug               Compiles the library in a debug mode"
 	@echo "    make [target] NOBLASLAPACK=1             Compiles the library without BLAS and LAPACK dependencies"
+	@echo "    make [target] USECPP=1                   Compiles the library using a C++ compiler"
 
-doc:
-	doxygen doc/doxyconfig
+allmunit:
+	$(MAKE) clean
+	$(MAKE) MODULE=libltfat munit
+	$(MAKE) MODULE=libphaseret munit
 
-cleandoc:
-	@$(RMDIR) html
-	@$(RMDIR) latex
+munit: 
+	$(MAKE) $(SO_DSTARGET) BLASLAPACKLIBS="-L$(MATLABROOT)/bin/glnxa64 -lmwblas -lmwlapack"
+	$(MAKE) $(buildprefix)/$(headerbase).h USECPP=0 CC=gcc
 
-build/ltfat.h:
-	$(CC) -E -P -DNOSYSTEMHEADERS -nostdinc include/ltfat.h -o build/ltfat.h
+$(buildprefix)/$(headerbase).h: $(buildprefix) 
+	$(CC) -E -P -DLTFAT_NOSYSTEMHEADERS $(EXTRACFLAGS) $(OPTCFLAGS) -Imodules/libltfat/include -I$(SRCDIR)include -nostdinc $(SRCDIR)include/$(headerbase).h -o $(buildprefix)/$(headerbase).h
+	sed -i '1 i #ifndef _$(headerbase)_H' $(buildprefix)/$(headerbase).h
+	sed -i '1 a #define _$(headerbase)_H' $(buildprefix)/$(headerbase).h
+	sed -i '2 a #ifndef LTFAT_NOSYSTEMHEADERS\n $(extradepincludes) #endif' $(buildprefix)/$(headerbase).h
+	sed -i '$$ a #endif' $(buildprefix)/$(headerbase).h
+	$(CC) -E -P -DLTFAT_NOSYSTEMHEADERS -Iinclude -nostdinc $(buildprefix)/$(headerbase).h -o $(buildprefix)/$(headerbase)_flat.h
 
 install:
 	install -d $(LIBDIR)
@@ -200,5 +243,5 @@ install:
 uninstall:
 	rm -f $(LIBDIR)/$(DSTATIC) $(LIBDIR)/$(SSTATIC) $(LIBDIR)/$(DSSTATIC)
 	rm -f $(LIBDIR)/$(DSHARED) $(LIBDIR)/$(SSHARED) $(LIBDIR)/$(DSSHARED)
-	rm -f $(INCDIR)/ltfat.h
-	rm -rf $(INCDIR)/ltfat
+	rm -f $(INCDIR)/$(headerbase).h
+	rm -rf $(INCDIR)/$(headerbase)

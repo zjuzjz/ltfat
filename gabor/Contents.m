@@ -1,6 +1,6 @@
 % LTFAT - Gabor analysis
 %
-%  Peter L. Søndergaard, 2007 - 2016.
+%  Peter L. Søndergaard, 2007 - 2018.
 %
 %  Basic Time/Frequency analysis
 %    TCONV          -  Twisted convolution
@@ -22,6 +22,9 @@
 %    GABWIN         -  Evaluate Gabor window
 %    PROJKERN	    -  Projection of Gabor coefficients onto kernel space
 %    DGTLENGTH      -  Length of Gabor system to expand a signal
+%
+%  Multi-Gabor systems
+%    MULTIDGTREALMP -  Matching pursuit decomposition in Multi-Gabor system 
 %
 %  Wilson bases and WMDCT
 %    DWILT          -  Discrete Wilson transform
