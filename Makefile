@@ -104,7 +104,7 @@ $(RELEASE_TARBALL): $(MAT2DOC) update
 
 $(HTML_TARBALL): $(HTML_DIR)
 	( cd $(TARGET_DIR) ; \
-	tar -cvf $(PACKAGE)-html.tar.gz $(PACKAGE)-html ; )
+	tar -czvf $(PACKAGE)-html.tar.gz $(PACKAGE)-html ; )
 
 ## install is a prerequesite to the html directory (note that the html
 ## tarball will use the implicit rule for ".tar.gz" files).
