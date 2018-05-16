@@ -56,7 +56,7 @@ NLOOPBOTH(\
     LTFAT_COMPLEX* kcurrCol = k->kval + knidx * k->size.height;\
 MLOOPBOTH(\
     currcCol[midx] = currcCol[midx] SIGN s->cvalModBuf[kIdx][mmidx] * kcurrCol[kmidx]; \
-    /* currsCol[midx] = ltfat_norm( currcCol[midx]); */ ))}}
+    ))}}
 
 #define LTFAT_DGTREALMP_MARKMODIFIED \
 NLOOPBOTH(\
@@ -265,6 +265,57 @@ LTFAT_NAME(dgtrealmp_execute_locomp)(
     return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
 }
 
+int
+LTFAT_NAME(dgtrealmp_execute_selfprojmp)(
+    LTFAT_NAME(dgtrealmp_state)* p,
+    kpoint origpos, LTFAT_COMPLEX** cout)
+{
+    LTFAT_NAME(dgtrealmpiter_state)* s = p->iterstate;
+
+    s->err -= LTFAT_NAME(dgtrealmp_execute_mp)(
+                  p, s->c[PTOI(origpos)], origpos, cout);
+
+    LTFAT_NAME(dgtrealmp_execute_findneighbors)(p, origpos, s->pBuf, &s->pBufNo);
+
+    if ( s->pBufNo == 1 )
+        return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
+
+    for (size_t cycl = 0; cycl < p->params->cycles; cycl++ )
+    {
+        for (int pIdx2 = s->pBufNo -1; pIdx2 >= 0 ; pIdx2--)
+        {
+            kpoint spmax = s->pBuf[0];
+            LTFAT_REAL projenergymax;
+
+            LTFAT_COMPLEX dummy_cvaldual;
+            LTFAT_NAME(dgtrealmp_execute_dualprodandprojenergy)(
+                p, spmax, s->c[PTOI(spmax)], &dummy_cvaldual, &projenergymax);
+
+            for (int pIdx = s->pBufNo -1; pIdx > 0 ; pIdx--)
+            {
+                kpoint pp = s->pBuf[pIdx];
+
+                LTFAT_REAL projenergy;
+                LTFAT_NAME(dgtrealmp_execute_dualprodandprojenergy)(
+                    p, pp, s->c[PTOI(pp)], &dummy_cvaldual, &projenergy);
+
+                if(projenergy > projenergymax)
+                {
+                    projenergymax = projenergy;
+                    spmax = pp;
+                }
+            }
+
+            if(projenergymax < 1e-8) break;
+
+            s->err -= LTFAT_NAME(dgtrealmp_execute_mp)(
+                        p, s->c[PTOI(spmax)], spmax, cout);
+        }
+
+
+    }
+    return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
+}
 
 int
 LTFAT_NAME(dgtrealmp_execute_cyclicmp)(
@@ -273,77 +324,50 @@ LTFAT_NAME(dgtrealmp_execute_cyclicmp)(
 {
     LTFAT_NAME(dgtrealmpiter_state)* s = p->iterstate;
 
-    long double errstart = s->err;
+    // Normal MP step
     s->err -= LTFAT_NAME(dgtrealmp_execute_mp)(
                   p, s->c[PTOI(origpos)], origpos, cout);
 
-    s->pBufNo = 0;
-    s->pBuf[s->pBufNo++] = origpos;
+    LTFAT_NAME(dgtrealmp_execute_findneighbors)(p, origpos, s->pBuf, &s->pBufNo);
+
+    // There are no neighbors
+    if ( s->pBufNo == 1 )
+        return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
 
     for (size_t cycl = 0; cycl < p->params->cycles; cycl++ )
     {
-        size_t pBufNoStart = s->pBufNo;
-        for (size_t posIdx = 0; posIdx < pBufNoStart; posIdx++)
+        for (int pIdx = s->pBufNo -1; pIdx >= 0 ; pIdx--)
         {
-            kpoint origpos2 = s->pBuf[posIdx];
-            for (ltfat_int w2 = 0; w2 < s->P; w2++)
+            kpoint dummypos;
+            LTFAT_NAME(dgtrealmp_execute_findmaxatom)( p, &dummypos);
+            long double erratomstart = s->err;
+
+            kpoint* pos = &s->pBuf[pIdx];
+
+            long double inverr =
+                LTFAT_NAME(dgtrealmp_execute_invmp)( p, *pos, cout);
+
+            s->err += inverr;
+
+            s->suppind[PTOI((*pos))] = 0;
+            s->curratoms--;
+            LTFAT_NAME(dgtrealmp_execute_findmaxatom)(p, pos);
+            if ( !s->suppind[PTOI((*pos))] ) s->curratoms++;
+
+            long double fwderr =
+                LTFAT_NAME(dgtrealmp_execute_mp)( p, s->c[PTOI((*pos))] , *pos, cout);
+
+            s->err -= fwderr;
+
+            long double erratomend = s->err;
+            if( (erratomstart - erratomend) < (long double) (-1e-6))
             {
-                ltfat_int m2start, n2start;
-                ksize   kdim2; kanchor kmid2; kpoint  kstart2;
-                kpoint pos; pos.w = w2;
-
-                LTFAT_NAME(dgtrealmp_execute_indices)(
-                    p, origpos2, &pos, &m2start, &n2start,
-                    &kdim2, &kmid2, &kstart2);
-
-                LTFAT_NAME(kerns)* k = p->gramkerns[origpos2.w + s->P * w2];
-
-                NLOOP
-                {
-                    unsigned int* suppCol = s->suppind[w2] + nidx * p->M2[w2];
-                    MLOOP
-                    {
-                        if ( (midx >= 0 && midx < p->M2[w2] ) && suppCol[midx])
-                        {
-                            /* if ( kmidx < k->range[knidx].start || */
-                            /* kmidx > k->size.height - 1 - k->range[knidx].end)  continue; */
-                            pos = kpoint_init(midx, nidx, w2);
-
-                            int alreadyhave = 0;
-                            for (size_t pIdx = 0; pIdx < s->pBufNo; pIdx++ )
-                                if ((alreadyhave = kpoint_isequal(s->pBuf[pIdx], pos))) break;
-
-                            if (!alreadyhave) s->pBuf[s->pBufNo++] = pos;
-                        }
-                    }
-                }
-            }
-
-            if ( s->pBufNo == 1 )
-                return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
-
-            for (size_t pIdx = 1; pIdx < s->pBufNo ; pIdx++)
-            {
-                kpoint* pos = &s->pBuf[pIdx];
-                /* DEBUG("Before m=%td,n=%td",pos->m,pos->n); */
-                s->err += LTFAT_NAME(dgtrealmp_execute_invmp)( p, *pos, cout);
-                LTFAT_NAME(dgtrealmp_execute_findmaxatom)(p, pos);
-                s->err -= LTFAT_NAME(dgtrealmp_execute_mp)(
-                              p, s->c[PTOI((*pos))] , *pos, cout);
-
-                /* DEBUG("After m=%td,n=%td",pos->m,pos->n); */
+                // The selected atom is worse! 
+                // printf("itno:%td, errdif=%.8Lf\n", s->currit , erratomstart - erratomend);
+                return LTFAT_DGTREALMP_STATUS_STALLED;
             }
         }
     }
-
-    long double errend = s->err;
-
-    if ((errend - errstart) > (long double) 1e-5 )
-    {
-        printf("itno:%td, errdif=%Lf\n", s->currit , errend - errstart);
-        return LTFAT_DGTREALMP_STATUS_STALLED;
-    }
-
     return LTFAT_DGTREALMP_STATUS_CANCONTINUE;
 }
 
@@ -377,7 +401,6 @@ LTFAT_NAME(dgtrealmp_execute_invmp)(
     LTFAT_COMPLEX coutval = cout[PTOI(pos)];
     cout[PTOI(pos)] = LTFAT_COMPLEX(0.0, 0.0);
     LTFAT_COMPLEX cresval = s->c[PTOI(pos)];
-    s->suppind[PTOI(pos)] = 0;
 
     LTFAT_COMPLEX atinprod;
     LTFAT_REAL oneover1minatprodnorm;
@@ -386,49 +409,15 @@ LTFAT_NAME(dgtrealmp_execute_invmp)(
 
     LTFAT_REAL plusatenergy =
         LTFAT_NAME(dgtrealmp_execute_projenergy)( atinprod, coutval)
-        + (LTFAT_REAL)(2.0) * ltfat_real(cresval  * conj(coutval));
+        + (LTFAT_REAL)(4.0) * ltfat_real( cresval  * conj(coutval));
 
-    if (do_conj) plusatenergy *= 2.0;
+    if (!do_conj) plusatenergy /= 2.0;
 
     LTFAT_NAME(dgtrealmp_execute_updateresiduum)(
         p, pos, coutval, 0);
 
     return plusatenergy;
 }
-
-
-/* LTFAT_REAL */
-/* LTFAT_NAME(dgtrealmp_execute_adjustedenergy)( */
-/*     LTFAT_NAME(dgtrealmp_state)* p, kpoint pos, LTFAT_COMPLEX cval) */
-/* { */
-/*     LTFAT_COMPLEX atprod = */
-/*         LTFAT_NAME(dgtrealmp_execute_conjatpairprod)( p, pos); */
-/*     LTFAT_COMPLEX cvaldual = */
-/*         (cval - (atprod) * conj(cval)) / ((LTFAT_REAL)(1.0) - ltfat_norm( atprod)); */
-/*  */
-/*     return LTFAT_NAME(dgtrealmp_execute_atenergy)( atprod, cvaldual); */
-/* } */
-
-/* LTFAT_REAL */
-/* LTFAT_NAME(dgtrealmp_execute_atenergy)( */
-/*     LTFAT_COMPLEX atinprod, LTFAT_COMPLEX cval) */
-/* { */
-/*     LTFAT_COMPLEX cvalphase = exp( I * ((LTFAT_REAL)2.0) * ltfat_arg(cval)); */
-/*     return (1.0 + ltfat_real(cvalphase * conj( atinprod) )); */
-/* } */
-
-
-/* LTFAT_REAL */
-/* LTFAT_NAME(dgtrealmp_execute_projenergy)( */
-/*     LTFAT_COMPLEX atinprod, LTFAT_COMPLEX cval) */
-/* { */
-/*     LTFAT_REAL cr = ltfat_real(cval); */
-/*     LTFAT_REAL ci = ltfat_imag(cval); */
-/*     LTFAT_REAL cr2 = cr*cr; */
-/*     LTFAT_REAL ci2 = ci*ci; */
-/*     LTFAT_COMPLEX at = conj(atinprod); */
-/*     return cr2 + ci2 + ltfat_real(at)*(cr2 - ci2) - 2*ltfat_imag(at)*cr*ci; */
-/* } */
 
 void
 LTFAT_NAME(dgtrealmp_execute_dualprodandprojenergy)(
@@ -448,11 +437,11 @@ LTFAT_NAME(dgtrealmp_execute_dualprodandprojenergy)(
     {
         if ( pos.m < k->atprodsNo )
         {
-            LTFAT_COMPLEX atinprod = k->atprods[pos.m];
+            LTFAT_COMPLEX atinprod = (k->atprods[pos.m]);
             if (p->params->ptype == LTFAT_FREQINV)
                 atinprod *= k->mods[ltfat_positiverem(pos.n, k->kNo)][-2*pos.m  + k->mid.hmid];
 
-            *cvaldual = (cval - conj(cval)*atinprod)*k->oneover1minatprodnorms[pos.m];
+            *cvaldual = (cval - conj(cval)*conj(atinprod))*k->oneover1minatprodnorms[pos.m];
             *projenergy = LTFAT_NAME(dgtrealmp_execute_projenergy)( atinprod, *cvaldual);
             return;
         }
@@ -460,16 +449,15 @@ LTFAT_NAME(dgtrealmp_execute_dualprodandprojenergy)(
         ltfat_int posinkern = p->M2[pos.w] - pos.m - uniquenyquest;
         if ( posinkern < k->atprodsNo )
         {
-            LTFAT_COMPLEX atinprod = conj(k->atprods[posinkern]);
+            LTFAT_COMPLEX atinprod = (k->atprods[posinkern]);
 
             if (p->params->ptype == LTFAT_FREQINV)
                 atinprod *= k->mods[ltfat_positiverem(pos.n, k->kNo)][2*posinkern + k->mid.hmid];
 
-            *cvaldual = (cval - conj(cval)*atinprod)*k->oneover1minatprodnorms[posinkern];
+            *cvaldual = (cval - conj(cval)*conj(atinprod))*k->oneover1minatprodnorms[posinkern];
             *projenergy = LTFAT_NAME(dgtrealmp_execute_projenergy)( atinprod, *cvaldual);
             return;
         }
-
         *projenergy *= 2.0;
     }
 }
@@ -508,26 +496,6 @@ LTFAT_NAME(dgtrealmp_execute_conjatpairprod)(
 
             *oneover1minatprodnorm = k->oneover1minatprodnorms[posinkern];
         }
-        /* ltfat_int posinkern  = k->mid.hmid - 2 * pos.m; */
-        /* #<{(| if( posinkern >= 0 )  |)}># */
-        /* if ( posinkern >= k->range[k->mid.wmid].start ) */
-        /* { */
-        /*     LTFAT_COMPLEX atinprod = k->kval[k->size.height * k->mid.wmid + posinkern]; */
-        /*     if (p->params->ptype == LTFAT_FREQINV) */
-        /*         atinprod *= k->mods[ltfat_positiverem(pos.n, k->kNo)][posinkern]; */
-        /*  */
-        /*     return  (atinprod); */
-        /* } */
-        /* posinkern  = k->mid.hmid + 2 * ( p->M2[pos.w] - 1 - pos.m) + 1 - uniquenyquest; */
-        /* #<{(| if( posinkern < k->size.height  ) |)}># */
-        /* if ( posinkern < k->size.height - k->range[k->mid.wmid].end ) */
-        /* { */
-        /*     LTFAT_COMPLEX atinprod = k->kval[k->size.height * k->mid.wmid + posinkern]; */
-        /*     if (p->params->ptype == LTFAT_FREQINV) */
-        /*         atinprod *= k->mods[ltfat_positiverem(pos.n, k->kNo)][posinkern]; */
-        /*  */
-        /*     return (atinprod); */
-        /* } */
     }
 }
 
@@ -548,9 +516,6 @@ LTFAT_NAME(dgtrealmp_execute_updateresiduum)(
     kpoint origposconj = origpos;
     origposconj.m = p->M[origpos.w] - origpos.m;
 
-    /* DEBUG("it=%td",s->currit); */
-    /* DEBUG("Origpos: m=%td,n=%td,w=%td", origpos.m,origpos.n,origpos.w); */
-
     /* This loop is trivially pararelizable */
     for (ltfat_int w2 = 0; w2 < s->P; w2++)
     {
@@ -566,10 +531,6 @@ LTFAT_NAME(dgtrealmp_execute_updateresiduum)(
         pos.w = w2;
         LTFAT_NAME(dgtrealmp_execute_indices)(
             p, origpos, &pos, &m2start, &n2start, &kdim2, &kmid2, &kstart2);
-
-        /* DEBUG("Pos: m=%td,n=%td,w=%td", pos.m, pos.n,pos.w); */
-        /* DEBUG("LLLLLL wstart=%td, hstart=%td, wmid=%td, hmid=%td, w=%td,h=%td,kno=%td,", */
-        /*       kstart2.m, kstart2.n, kmid2.wmid, kmid2.hmid, kdim2.width, kdim2.height, k->kNo ); */
 
         m2end = m2start + kdim2.height;
         mover = ltfat_imax(0, m2end - p->M[w2]);
@@ -599,10 +560,6 @@ LTFAT_NAME(dgtrealmp_execute_updateresiduum)(
 
                 LTFAT_NAME(dgtrealmp_execute_indices)(
                     p, origposconj, &pos, &m2start, &n2start, &kdim2, &kmid2, &kstart2);
-
-
-                /* DEBUG("CONJ LLLLLL wstart=%td, hstart=%td, wmid=%td, hmid=%td, w=%td,h=%td", */
-                /*       kstart2.m, kstart2.n, kmid2.wmid, kmid2.hmid, kdim2.width, kdim2.height ); */
 
                 m2end = m2start + kdim2.height;
                 mover = ltfat_imax(0, m2end - p->M[w2]);
@@ -662,9 +619,6 @@ LTFAT_NAME(dgtrealmp_execute_indices)(
     kdim2->height = ltfat_idivceil(kdim2->height - kstart2->m, k->Mstep);
     kdim2->width  = ltfat_idivceil(kdim2->width  - kstart2->n, k->astep);
 
-    /* DEBUG("Wheight=%td,Kwidth=%td",k->size.height, k->size.width  ); */
-    /* DEBUG("Wheight=%td,Kwidth=%td,Kstartm=%td,Kstartn=%td",kdim2->height, kdim2->width, kstart2->m, kstart2->n  ); */
-
     return 0;
 }
 
@@ -713,6 +667,49 @@ LTFAT_NAME(dgtrealmp_execute_findmaxatom)(
         }
     }
     return retval;
+}
+
+int
+LTFAT_NAME(dgtrealmp_execute_findneighbors)(
+        LTFAT_NAME(dgtrealmp_state)* p, kpoint origpos,
+        kpoint* nBuf, size_t* nCount)
+{
+    LTFAT_NAME(dgtrealmpiter_state)* s = p->iterstate;
+    *nCount = 0;
+    nBuf[(*nCount)++] = origpos;
+
+    for (ltfat_int w2 = 0; w2 < s->P; w2++)
+    {
+        ltfat_int m2start, n2start;
+        ksize   kdim2; kanchor kmid2; kpoint  kstart2;
+        kpoint pos; pos.w = w2;
+
+        LTFAT_NAME(dgtrealmp_execute_indices)(
+            p, origpos, &pos, &m2start, &n2start,
+            &kdim2, &kmid2, &kstart2);
+
+        LTFAT_NAME(kerns)* k = p->gramkerns[origpos.w + s->P * w2];
+
+        NLOOP
+        {
+            unsigned int* suppCol = s->suppind[w2] + nidx * p->M2[w2];
+            MLOOP
+            {
+                if ( (midx >= 0 && midx < p->M2[w2] ) && suppCol[midx])
+                {
+                    pos = kpoint_init(midx, nidx, w2);
+
+                    int alreadyhave = 0;
+                    for (size_t pIdx = 0; pIdx < *nCount; pIdx++ )
+                        if ((alreadyhave = kpoint_isequal(nBuf[pIdx], pos))) break;
+
+                    if (!alreadyhave) nBuf[(*nCount)++] = pos;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 #ifdef NOBLASLAPACK

@@ -31,11 +31,17 @@ function [c, frec, info] = multidgtrealmp(f,dicts,varargin)
 %   `[c,frec,info] = multidgtrealmp(...)` in addition returns the
 %   aproximation *frec* and a struct `info` with the following fields:
 %
-%     .iter    Number of iterations done.
+%     .iter     Number of iterations done.
 %
-%     .atoms   Number of atoms selected.
+%     .atoms    Number of atoms selected.
 %
-%     .relres  Final approximation error. 
+%     .relres   Final approximation error. 
+%
+%     .g        Cell array of numeric windows used in the multi-dictionary
+%
+%     .a        Array of hop factors for indivitual dictionaries
+%
+%     .M        Array of numbers of channels for individual dictionaries
 %
 %     .synthetize  Anonymous function which can be used to synthetize from
 %                  the (modified) coefficients as 
@@ -56,6 +62,9 @@ function [c, frec, info] = multidgtrealmp(f,dicts,varargin)
 %
 %     'pedanticsearch' Be pedantic about the energy of pairs of conjugated
 %                      atoms in the selection step. Disbaled by default.
+%
+%     'algorithm',alg  Algorithm to use. Available: 
+%                      'mp'(default),'selfprojmp','cyclicmp'
 %
 %   The computational routine is only available in C. Use |ltfatmex| to
 %   to compile it.
@@ -104,7 +113,8 @@ definput.keyvals.maxit=[];
 %definput.keyvals.iterstep=[];
 definput.keyvals.kernthr = 1e-4;
 %definput.flags.print={'quiet','print'};
-definput.flags.algorithm={'fast','slow'};
+definput.flags.algversion={'fast','slow'};
+definput.flags.algorithm={'mp','selfprojmp','cyclicmp'};
 definput.flags.search={'plainsearch','pedanticsearch'};
 definput.flags.phaseconv={'freqinv','timeinv'};
 [flags,kv]=ltfatarghelper({'errdb','maxit'},definput,varargin);
@@ -152,6 +162,8 @@ if any(rem([a(:);M(:)],amin) ~= 0)
     error('%s: all a and M must be divisible by min(a1,...,aW)',thismfile);
 end
 
+info.a = a;
+info.M = M;
 info.iter = 0;
 info.relres = [];
 fnorm = norm(f);
@@ -159,21 +171,24 @@ fnorm = norm(f);
 L = dgtlength(Ls,amin,Mmax);
 if isempty(kv.maxit), kv.maxit = L; end
 
-g = cell(dictno,1);
+info.g = cell(dictno,1);
 for dIdx = 1:dictno
-    g{dIdx} = normalize(gabwin(gin{dIdx},a(dIdx),M(dIdx),L),'2');
+    info.g{dIdx} = normalize(gabwin(gin{dIdx},a(dIdx),M(dIdx),L),'2');
 end
 
 fpad = postpad(f,L);
 
-[c,info.atoms,info.iter] = comp_multidgtrealmp(fpad,g,a,M,flags.do_timeinv,kv.kernthr,kv.errdb,kv.maxit,kv.maxit,flags.do_pedanticsearch);
+[c,info.atoms,info.iter] = ...
+    comp_multidgtrealmp(fpad,info.g,a,M,flags.do_timeinv,...
+                        kv.kernthr,kv.errdb,kv.maxit,kv.maxit,...
+                        flags.do_pedanticsearch, flags.algorithm );
 
 if nargout>1  
   permutedsize2 = permutedsize; permutedsize2(2) = dictno;
   info.synthetize = @(c) ...
       assert_sigreshape_post(...
       postpad(cell2mat(cellfun(@(cEl,gEl,aEl,MEl) idgtreal(cEl,gEl,aEl,MEl,flags.phaseconv),...
-      c(:)',g(:)',num2cell(a(:))',num2cell(M(:))','UniformOutput',0)),Ls),...
+      c(:)',info.g(:)',num2cell(a(:))',num2cell(M(:))','UniformOutput',0)),Ls),...
       dim,permutedsize2,order);
   dim2 = 2;
   if dim == 2, dim2 = 1; end
