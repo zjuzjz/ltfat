@@ -55,7 +55,7 @@ end;
 definput.import={'normalize'};
 definput.keyvals.dim=[];
 
-[flags,kv]=ltfatarghelper({},definput,varargin);
+[flags,kv]=ltfatarghelper({},definput,varargin,'normalize');
 
 if flags.do_null || flags.do_norm_notset || isempty(f);
   return
@@ -75,39 +75,36 @@ for ii=1:W
   
   if flags.do_1 || flags.do_area
     fnorm(ii) =  norm(f(:,ii),1);
-    f(:,ii)=f(:,ii)/fnorm(ii);
   end;
 
   if flags.do_2 || flags.do_energy 
     fnorm(ii) = norm(f(:,ii),2);
-    f(:,ii)=f(:,ii)/fnorm(ii);
   end;
 
   if flags.do_inf || flags.do_peak
     fnorm(ii) = norm(f(:,ii),Inf);
-    f(:,ii)=f(:,ii)/fnorm(ii);
   end;
 
   if flags.do_rms
     fnorm(ii) = rms(f(:,ii));
-    f(:,ii)=f(:,ii)/fnorm(ii);
   end;
   
   if flags.do_s0 
     fnorm(ii) = s0norm(f(:,ii));
-    f(:,ii)=f(:,ii)/fnorm(ii);
   end;
   
   if flags.do_wav
     if isa(f,'float')
-       fnorm(ii) = norm(f(:,ii),Inf); 
-       f(:,ii) = 0.99*f(:,ii)/fnorm(ii);
+       fnorm(ii) = (1/0.99)*norm(f(:,ii),Inf); 
     else
        error(['%s: TO DO: Normalizing integer data types not supported ',...
               'yet.'],upper(mfilename));
     end
   end;
   
+  if fnorm(ii) > 0
+     f(:,ii)=f(:,ii)/fnorm(ii);
+  end
 end;
 
 

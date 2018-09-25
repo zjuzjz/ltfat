@@ -1,4 +1,4 @@
-function [g,a,fc,L]=cqtfilters(fs,fmin,fmax,bins,Ls,varargin)
+function [g,a,fc,L,info]=cqtfilters(fs,fmin,fmax,bins,Ls,varargin)
 %CQTFILTERS   CQT-spaced filters
 %   Usage:  [g,a,fc]=cqtfilters(fs,fmin,fmax,bins,Ls,varargin);
 %           
@@ -12,7 +12,7 @@ function [g,a,fc,L]=cqtfilters(fs,fmin,fmax,bins,Ls,varargin)
 %   Output parameters:
 %      g     : Cell array of filters.
 %      a     : Downsampling rate for each channel.
-%      fc    : Center frequency of each channel.
+%      fc    : Center frequency of each channel (in Hz).
 %      L     : Next admissible length suitable for the generated filters.
 %
 %   `[g,a,fc]=cqtfilters(fs,fmin,fmax,bins,Ls)` constructs a set of
@@ -63,13 +63,12 @@ function [g,a,fc,L]=cqtfilters(fs,fmin,fmax,bins,Ls,varargin)
 %   `cqtfilters` accepts the following optional parameters:
 %
 %     'Qvar',Qvar           Bandwidth variation factor. Multiplies the
-%                           calculated bandwidth. Default value is *1*.
-%                           If the value is less than one, the
+%                           calculated bandwidth (divides Q). 
+%                           Default value is *1*.
+%                           If the value is larger than one, the
 %                           system may no longer be painless.
 %
-%     'subprec'             Allow subsample window positions and
-%                           bandwidths to better approximate the constant-Q
-%                           property.
+%     'nosubprec'           Disable subsample window positions.
 %
 %     'complex'             Construct a filter bank that covers the entire
 %                           frequency range. When missing, only positive
@@ -152,22 +151,40 @@ if fmin>=fmax
     error('%s: fmin has to be less than fmax.',upper(mfilename));
 end
 
-definput.import = {'firwin'};
+firwinflags=getfield(arg_firwin,'flags','wintype');
+freqwinflags=getfield(arg_freqwin,'flags','wintype');
+
+definput.flags.wintype = [ firwinflags, freqwinflags];
 definput.keyvals.L=[];
 definput.keyvals.Qvar = 1;
 definput.keyvals.redmul=1;
 definput.keyvals.min_win = 4;
+definput.keyvals.trunc_at=10^(-5);
 definput.flags.real     = {'real','complex'};
-definput.flags.subprec  = {'nosubprec','subprec'};
+definput.flags.subprec  = {'subprec','nosubprec'};
 definput.flags.sampling = {'regsampling','uniform',...
                            'fractional','fractionaluniform'};
 
+[varargin,winCell] = arghelper_filterswinparser(definput.flags.wintype,varargin);
 [flags,kv]=ltfatarghelper({},definput,varargin);
+if isempty(winCell), winCell = {flags.wintype}; end
 
-if flags.do_subprec
-    error('%s: TO DO: Subsample window positioning is not implemented yet.',...
-          upper(mfilename));
+[filterfunc,winbw] = helper_filtergeneratorfunc(...
+                          flags.wintype,winCell,fs,1,kv.min_win,kv.trunc_at,...
+                          [],flags.do_subprec,1,0);
+     
+winbw_hann = 0.3750;
+switch flags.wintype
+    case firwinflags
+       winbw = winbw/winbw_hann;
+    case freqwinflags
+       % Adjusting Qvar such that the filters have the same erb as the
+       % Hann window
+       winbw = winbw/winbw_hann;
+       kv.Qvar = kv.Qvar/(winbw);
 end
+
+
 % Nyquist frequency
 nf = fs/2;
 
@@ -179,7 +196,7 @@ end
 % Number of octaves
 b = ceil(log2(fmax/fmin))+1;
 
-if length(bins) == 1;
+if length(bins) == 1
     % Constant number of bins in each octave
     bins = bins*ones(b,1);
 elseif length(bins) < b
@@ -193,7 +210,7 @@ end
 fc = zeros(sum(bins),1);
 
 ll = 0;
-for kk = 1:length(bins);
+for kk = 1:length(bins)
     fc(ll+(1:bins(kk))) = ...
         fmin*2.^(((kk-1)*bins(kk):(kk*bins(kk)-1)).'/bins(kk));
     ll = ll+bins(kk);
@@ -258,35 +275,35 @@ end
 
 %% Compute the downsampling rate
 if flags.do_regsampling
-        % Find minimum a in each octave and floor23 it.
-        s = M-cumsum(bins);
-        bins=bins(1:find(s<=0,1));
-        bins(end) = bins(end)-(sum(bins)-M);
-        aocts = mat2cell(aprecise(2:end-1),bins);
-        aocts = [{aprecise(1)};aocts;aprecise(end)];
-        %aocts{1} = [aprecise(1);aocts{1}];
-        %aocts{end} = [aocts{end};aprecise(end)];
-        a=cellfun(@(aEl) floor23(min(aEl)),aocts);
+    % Find minimum a in each octave and floor23 it.
+    s = M-cumsum(bins);
+    bins=bins(1:find(s<=0,1));
+    bins(end) = bins(end)-(sum(bins)-M);
+    aocts = mat2cell(aprecise(2:end-1),bins);
+    aocts = [{aprecise(1)};aocts;aprecise(end)];
+    %aocts{1} = [aprecise(1);aocts{1}];
+    %aocts{end} = [aocts{end};aprecise(end)];
+    a=cellfun(@(aEl) floor23(min(aEl)),aocts);
 
-        % Determine the minimal transform length lcm(a)
+    % Determine the minimal transform length lcm(a)
+    L = filterbanklength(Ls,a);
+
+    % Heuristic trying to reduce lcm(a)
+    while L>2*Ls && ~(all(a==a(1)))
+        maxa = max(a);
+        a(a==maxa) = 0;
+        a(a==0) = max(a);
         L = filterbanklength(Ls,a);
+    end
 
-        % Heuristic trying to reduce lcm(a)
-        while L>2*Ls && ~(all(a==a(1)))
-            maxa = max(a);
-            a(a==maxa) = 0;
-            a(a==0) = max(a);
-            L = filterbanklength(Ls,a);
-        end
-
-        % Deal the integer subsampling factors
-        a = cell2mat(cellfun(@(aoEl,aEl) ones(numel(aoEl),1)*aEl,...
-            aocts,mat2cell(a,ones(numel(a),1)),'UniformOutput',0));
+    % Deal the integer subsampling factors
+    a = cell2mat(cellfun(@(aoEl,aEl) ones(numel(aoEl),1)*aEl,...
+        aocts,mat2cell(a,ones(numel(a),1)),'UniformOutput',0));
 
 elseif flags.do_fractional
-        L = Ls;
-        N=ceil(Ls./aprecise);
-        a=[repmat(Ls,M2,1),N];
+    L = Ls;
+    N=ceil(Ls./aprecise);
+    a=[repmat(Ls,M2,1),N];
 elseif flags.do_fractionaluniform
     L = Ls;
     aprecise(2:end-1) = min(aprecise(2:end-1));
@@ -319,11 +336,14 @@ else
     fsupp=[fsupp;flipud(fsupp(2:M2-1))];
 end;
 
+
+
 % This is actually much faster than the vectorized call.
 g = cell(1,numel(fc));
 for m=1:numel(g)
-  g{m} = blfilter(flags.wintype,fsupp(m),fc(m),'fs',fs,'scal',scal(m),...
-                  'inf','min_win',kv.min_win);
+    g{m} = filterfunc(fsupp(m),fc(m),scal(m));
+  % g{m} = blfilter(flags.wintype,fsupp(m),fc(m),'fs',fs,'scal',scal(m),...
+  %                 'inf','min_win',kv.min_win);
 end
 
 
@@ -340,5 +360,11 @@ for idx = 1:size(kkpairs,1)
                              scal(kkpairs(idx)),'inf');
     end
 end
+
+winbwrat = winbw/2.0106;
+basebw = 1.875657;
+
+info.fc  = 2*fc/fs;
+info.tfr = @(L)(1/L)*1./((2*fsupp*winbwrat/fs)./basebw).^2;
 
 

@@ -5,7 +5,8 @@ function H = freqwin(name,L,bw,varargin)
 %   `freqwin(name,L,bw)` returns a frequency window *name* of length *L* 
 %   with the mainlobe -6dB (half height) bandwidth *bw*. It is intended to
 %   represent frequency response of a band-pass filter/window with 
-%   bandwidth *bw*. The bandwidth is given in normalised frequencies.
+%   bandwidth *bw*. The bandwidth is given in frequencies normalized
+%   to the Nyquist rate.
 %
 %   The function is not periodically wrapped should it be nonzero outside
 %   of the *L* samples (as opposed to e.g. |pgauss|).
@@ -75,7 +76,7 @@ definput.flags.centering={'wp','hp','shift'};
 definput.keyvals.shift = 0;
 definput.keyvals.fs = 2;
 definput.keyvals.atheight = 10^(-3/10);
-[flags,kv,fs]=ltfatarghelper({'fs'},definput,varargin);
+[flags,kv,fs]=ltfatarghelper({'fs'},definput,varargin,'freqwin');
 
 if flags.do_wp, kv.shift=0; end
 if flags.do_hp, kv.shift=0.5; end
