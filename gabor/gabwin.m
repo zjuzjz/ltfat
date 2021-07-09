@@ -36,7 +36,9 @@ function [g,info] = gabwin(g,a,M,varargin);
 %   The window can also be specified as cell array. The possibilities are:
 %
 %     `{'gauss',...}`
-%         Additional parameters are passed to |pgauss|.
+%         Additional parameters are passed to |pgauss|. When no additional
+%         parameters are passed, the window is generated according to the
+%         defaults in |pgauss|.
 %
 %     `{'dual',...}`
 %         Canonical dual window of whatever follows. See the examples below.
@@ -56,7 +58,7 @@ function [g,info] = gabwin(g,a,M,varargin);
 %   To compute Gaussian window with equal time and frequency support
 %   irrespective of *a* and *M*::
 %
-%     g=gabwin({'gauss',1},a,M,L);
+%     g=gabwin({'gauss'},a,M,L);
 %
 %   To compute the canonical dual of a Gaussian window fitted for a
 %   system with time-shift *a* and *M* channels::

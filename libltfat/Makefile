@@ -196,6 +196,10 @@ doc:
 
 static: $(DTARGET) $(STARGET) $(DSTARGET)
 
+phaseret:
+	$(MAKE) clean
+	$(MAKE) MODULE=libphaseret
+
 allshared:
 	$(MAKE) clean
 	$(MAKE) MODULE=libltfat shared 
@@ -209,6 +213,9 @@ cleanobj:
 
 clean: cleanobj
 	@-$(RMDIR) build
+
+cleanall: clean
+	find . -name 'CMakeCache.txt' -o -name '*.cmake' -o -name 'CMakeFiles' -exec rm -rf {} +
 
 help:
 	@echo "USAGE: make [target]"
